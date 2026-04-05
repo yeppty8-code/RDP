@@ -1,0 +1,23 @@
+name: Windows-RDP-Cloudflare
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Download Cloudflared
+      run: |
+        curl -L --output cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
+
+    - name: Enable Remote Desktop
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        net user runneradmin MySecurePass123! /add
+        net localgroup administrators runneradmin /add
+
+    - name: Start Tunnel
+      run: |
+        # Replace the token below with your Cloudflare Tunnel Token
+        # You get this from the Cloudflare Zero Trust Dashboard
+        ./cloudflared.exe tunnel run --token ${{ secrets.CLOUDFLARE_TOKEN }}
