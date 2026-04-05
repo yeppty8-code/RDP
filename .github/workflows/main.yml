@@ -1,40 +1,26 @@
-name: GitHub-Windows-RDP
+name: Windows-RDP-Cloudflare
 on: workflow_dispatch
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
-    - name: Install Cloudflared
+    - name: Setup RDP and User
       run: |
-        curl -L --output cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
-
-    - name: Enable RDP (PowerShell Script)
-      shell: powershell
-      run: |
-        # 1. Enable RDP in Registry
+        # Enable Remote Desktop
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # 2. Create User and Set Password (PowerShell way to avoid prompts)
-        $Password = ConvertTo-SecureString "MySecurePass123!" -AsPlainText -Force
-        try {
-            New-LocalUser "runneradmin" -Password $Password -Description "RDP User" -ErrorAction SilentlyContinue
-        } catch {
-            Write-Host "User already exists, setting password instead..."
-            $user = Get-LocalUser -Name "runneradmin"
-            $user | Set-LocalUser -Password $Password
-        }
-        
-        # 3. Add to Admins and Remote Desktop Users
-        Add-LocalGroupMember -Group "Administrators" -Member "runneradmin" -ErrorAction SilentlyContinue
-        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "runneradmin" -ErrorAction SilentlyContinue
+        # Set Password to: MyRobloxBot123!
+        $Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
+        Set-LocalUser -Name "runneradmin" -Password $Password
 
-    - name: Start Tunnel and Keep Alive
-      shell: powershell
+    - name: Start Cloudflare Tunnel
       run: |
-        # This starts the tunnel using your secret token
-        Start-Process ./cloudflared.exe -ArgumentList "tunnel run --token ${{ secrets.CLOUDFLARE_TOKEN }}"
+        # Download Cloudflare
+        curl -L -o cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
         
-        Write-Host "Tunnel is running. VM will stay alive for 6 hours."
-        $i = 0; while($i -le 360) { Start-Sleep -Seconds 60; $i++ }
+        Write-Host "--- WAITING FOR TUNNEL LINK... LOOK BELOW ---"
+        
+        # This starts the tunnel and keeps the log open so you can see the URL
+        .\cloudflared.exe tunnel --url rdp://localhost:3389
