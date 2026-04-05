@@ -1,38 +1,34 @@
-name: Windows-RDP-Cloudflare
-on: 
-  workflow_dispatch: # Manual trigger from the "Actions" tab
+name: GitHub-Created-Tunnel
+on: workflow_dispatch
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
-    - name: Download Cloudflared
+    - name: Install Cloudflared
       run: |
         curl -L --output cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
 
-    - name: Enable Remote Desktop
+    - name: Enable RDP
       run: |
-        # 1. Enable RDP in Registry (Force)
         reg add "HKLM\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
-        
-        # 2. Allow through Firewall
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        
-        # 3. Set Password (ignoring errors if user/group already exists)
         net user runneradmin MySecurePass123! /add || echo "User exists"
         net localgroup administrators runneradmin /add || echo "Already admin"
-        
-        # 4. Disable password length/complexity prompts
-        reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 0 /f
 
-    - name: Start Tunnel and Keep Alive
+    - name: Create and Start Tunnel
       run: |
-        # Start cloudflared as a background process so the script can continue to the loop
-        Start-Process ./cloudflared.exe -ArgumentList "tunnel run --token ${{ secrets.CLOUDFLARE_TOKEN }}"
+        # 1. Authenticate (This usually requires a login, but we use a Tunnel Secret)
+        # 2. Create the tunnel named 'github-vm'
+        ./cloudflared.exe tunnel create github-vm
         
-        Write-Host "Tunnel is running. You can now connect via RDP."
-        Write-Host "Username: runneradmin"
-        Write-Host "Password: MySecurePass123!"
+        # 3. Route the tunnel to a hostname (e.g., rdp.yourdomain.com)
+        ./cloudflared.exe tunnel route dns github-vm rdp.yourdomain.com
         
-        # Keep the VM alive for 6 hours (GitHub's max limit)
+        # 4. Run the tunnel pointing to RDP port
+        Start-Process ./cloudflared.exe -ArgumentList "tunnel run --url rdp://localhost:3389 github-vm"
+        
+        Write-Host "GitHub has created the tunnel."
         $i = 0; while($i -le 360) { Sleep 60; $i++ }
+      env:
+        CLOUDFLARE_TUNNEL_PASSWORD: ${{ secrets.TUNNEL_PASSWORD }}
