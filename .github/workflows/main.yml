@@ -1,5 +1,6 @@
 name: Windows-RDP-Cloudflare
-on: workflow_dispatch
+on: 
+  workflow_dispatch: # Manual trigger from the "Actions" tab
 
 jobs:
   build:
@@ -11,13 +12,27 @@ jobs:
 
     - name: Enable Remote Desktop
       run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+        # 1. Enable RDP in Registry (Force)
+        reg add "HKLM\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+        
+        # 2. Allow through Firewall
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        net user runneradmin MySecurePass123! /add
-        net localgroup administrators runneradmin /add
+        
+        # 3. Set Password (ignoring errors if user/group already exists)
+        net user runneradmin MySecurePass123! /add || echo "User exists"
+        net localgroup administrators runneradmin /add || echo "Already admin"
+        
+        # 4. Disable password length/complexity prompts
+        reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 0 /f
 
-    - name: Start Tunnel
+    - name: Start Tunnel and Keep Alive
       run: |
-        # Replace the token below with your Cloudflare Tunnel Token
-        # You get this from the Cloudflare Zero Trust Dashboard
-        ./cloudflared.exe tunnel run --token ${{ secrets.CLOUDFLARE_TOKEN }}
+        # Start cloudflared as a background process so the script can continue to the loop
+        Start-Process ./cloudflared.exe -ArgumentList "tunnel run --token ${{ secrets.CLOUDFLARE_TOKEN }}"
+        
+        Write-Host "Tunnel is running. You can now connect via RDP."
+        Write-Host "Username: runneradmin"
+        Write-Host "Password: MySecurePass123!"
+        
+        # Keep the VM alive for 6 hours (GitHub's max limit)
+        $i = 0; while($i -le 360) { Sleep 60; $i++ }
