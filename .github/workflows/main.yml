@@ -150,15 +150,15 @@ jobs:
           const command = args.shift().toLowerCase()
 
           if (command === 'move') {
-            const x = parseInt(args[0])
-            const y = parseInt(args[1])
+            const x = parseInt(args)
+            const y = parseInt(args)
             if (!isNaN(x) && !isNaN(y)) {
               robot.moveMouse(x, y)
               await message.reply(`鼠标移动 to X: \${x}, Y: \${y}`)
             }
           }
           else if (command === 'click') {
-            const clickType = args[0] === 'right' ? 'right' : 'left'
+            const clickType = args === 'right' ? 'right' : 'left'
             robot.mouseClick(clickType)
             await message.reply(`点击了: [\${clickType}]`)
           }
@@ -170,7 +170,7 @@ jobs:
             }
           }
           else if (command === 'press') {
-            const targetKey = args[0]
+            const targetKey = args
             if (targetKey) {
               robot.keyTap(targetKey)
               await message.reply(`按下了按键: [\${targetKey}]`)
