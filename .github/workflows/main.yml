@@ -19,32 +19,33 @@ jobs:
 
     - name: Launch Zero-Login Raw TCP Tunnel
       run: |
-        # Spawn the interactive raw TCP connection over standard SSH tunnels
-        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=15 -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
+        # Ensure a clean log file exists
+        New-Item -ItemType File -Path "C:\tunnel.log" -Force | Out-Null
         
-        Write-Host "⏳ Establishing dynamic endpoint routing matrix..."
+        # Run SSH with absolute strict host checking bypasses and error routing merged into one stream
+        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel.log"
         
-        # Keep looping to look for the generated link address string inside the log streams
-        $timeout = 0
-        while ($timeout -lt 12) {
+        Write-Host "⏳ Initializing network routes... pulling initial connection log streams:"
+        Write-Host "=========================================================================="
+        
+        # Loop for 20 seconds to give the tunnel time to securely register and output the URL
+        $initTimeout = 0
+        while ($initTimeout -lt 10) {
             Start-Sleep -Seconds 2
             if (Test-Path "C:\tunnel.log") {
-                $logContent = Get-Content "C:\tunnel.log"
-                if ($logContent -match "pinggy.link") {
-                    Write-Host "=================================================="
-                    Write-Host "🚀 DEPLOYMENT SUCCESSFUL! CONNECT VIA DETAILS BELOW:"
-                    $logContent | Select-String "pinggy.link"
-                    Write-Host "=================================================="
-                    break
-                }
+                Get-Content "C:\tunnel.log" | Select-Object -Last 10
             }
-            $timeout++
+            $initTimeout++
         }
-
-        Write-Host "🔒 Keep-Alive loop engaged. The server will remain accessible for up to 6 hours."
-        Write-Host "🛑 To manually shut down this system runner, cancel the workflow execution from your GitHub UI."
         
-        # Infinite execution block to prevent the GitHub Actions container environment from terminating
+        Write-Host "=========================================================================="
+        Write-Host "🔒 Active keep-alive loop engaged. VM will stay alive for up to 6 hours."
+        Write-Host "💡 Pro-Tip: To look at your connection URL at any time, review the top of this step's log."
+        
+        # Continuous Anti-Idle Loop: Sends a timestamp heartbeat every 5 minutes to prevent timeout
+        $runtimeMinutes = 0
         while ($true) {
-            Start-Sleep -Seconds 60
+            Start-Sleep -Seconds 300
+            $runtimeMinutes += 5
+            Write-Host "⏱️ System Heartbeat: Runner connection has been active for $runtimeMinutes minutes."
         }
