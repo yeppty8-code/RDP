@@ -20,7 +20,7 @@ jobs:
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
         # Configure local user account credentials (Fixed: No backslashes)
-        \$Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
+        $Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
         Set-LocalUser -Name "runneradmin" -Password $Password
 
     - name: Download and Launch Cloudflare Tunnel
