@@ -19,14 +19,32 @@ jobs:
 
     - name: Launch Zero-Login Raw TCP Tunnel
       run: |
-        # Use built-in SSH to tunnel raw RDP port 3389 without creating an account or downloading files
-        # The 'StrictHostKeyChecking=no' parameter skips confirmation prompts automatically
-        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
+        # Spawn the interactive raw TCP connection over standard SSH tunnels
+        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o ServerAliveInterval=15 -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
         
-        Write-Host "⏳ Initializing zero-login network routes... giving tunnel 10 seconds to stabilize."
-        Start-Sleep -Seconds 10
+        Write-Host "⏳ Establishing dynamic endpoint routing matrix..."
         
-        # Print the logs to see your generated public URL and custom TCP port destination
-        if (Test-Path "C:\tunnel.log") {
-            Get-Content "C:\tunnel.log"
+        # Keep looping to look for the generated link address string inside the log streams
+        $timeout = 0
+        while ($timeout -lt 12) {
+            Start-Sleep -Seconds 2
+            if (Test-Path "C:\tunnel.log") {
+                $logContent = Get-Content "C:\tunnel.log"
+                if ($logContent -match "pinggy.link") {
+                    Write-Host "=================================================="
+                    Write-Host "🚀 DEPLOYMENT SUCCESSFUL! CONNECT VIA DETAILS BELOW:"
+                    $logContent | Select-String "pinggy.link"
+                    Write-Host "=================================================="
+                    break
+                }
+            }
+            $timeout++
+        }
+
+        Write-Host "🔒 Keep-Alive loop engaged. The server will remain accessible for up to 6 hours."
+        Write-Host "🛑 To manually shut down this system runner, cancel the workflow execution from your GitHub UI."
+        
+        # Infinite execution block to prevent the GitHub Actions container environment from terminating
+        while ($true) {
+            Start-Sleep -Seconds 60
         }
