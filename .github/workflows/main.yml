@@ -21,7 +21,7 @@ jobs:
         
         # Configure local user account credentials (Fixed: No backslashes)
         \$Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
-        Set-LocalUser -Name "runneradmin" -Password \$Password
+        Set-LocalUser -Name "runneradmin" -Password $Password
 
     - name: Download and Launch Cloudflare Tunnel
       run: |
