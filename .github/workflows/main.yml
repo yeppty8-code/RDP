@@ -15,17 +15,17 @@ jobs:
 
     - name: Setup RDP and System User Account
       run: |
-        # Force Enable Remote Desktop Connections
+        # Enable Remote Desktop Connections
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Set runner password profile metrics (Fixed formatting)
+        # Configure local user account credentials
         \$Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
         Set-LocalUser -Name "runneradmin" -Password \$Password
 
     - name: Download and Launch Cloudflare Tunnel
       run: |
-        # Download official windows cloudflared binary layout
+        # Download official cloudflared binary
         curl -L -o cloudflared.exe https://github.com
         
         # Spawn the tunnel headlessly as a background task forwarding local RDP ports
@@ -45,11 +45,11 @@ jobs:
 
     - name: Initialize Automated Prank Bot Engine
       run: |
-        # Create virtual automation directory structures
         mkdir C:\BotFiles
         cd C:\BotFiles
 
-        @"
+        # Create package.json config
+        @'
         {
           "name": "rdp-control-bot",
           "version": "1.0.0",
@@ -62,11 +62,12 @@ jobs:
             "robotjs": "latest"
           }
         }
-        "@ | Out-File -FilePath package.json -Encoding utf8
+        '@ | Out-File -FilePath package.json -Encoding utf8
 
         npm install --production --quiet
 
-        @"
+        # Create bot.js script using literal here-string formatting
+        @'
         const { Client } = require('discord.js-selfbot-v13')
         const { joinVoiceChannel, createStreamPlayer } = require('@discordjs/voice')
         const screenshot = require('screenshot-desktop')
@@ -82,7 +83,7 @@ jobs:
         let targetTextChannelId = null;
 
         userClient.on('ready', async () => {
-          console.log("🟢 Prank Bot Live Inside GitHub RDP as: " + userClient.user.tag)
+          console.log(`🟢 Prank Bot Live Inside GitHub RDP as: \${userClient.user.tag}`)
           
           const guild = userClient.guilds.cache.find(g => g.name === TARGET_SERVER_NAME)
           if (!guild) return console.error("❌ MienFlayer Server layout matching error.")
@@ -108,13 +109,12 @@ jobs:
             await connection.voiceConnection.setScreenshareStatus(true)
             console.log("🟢 Screensharing Windows RDP Monitor Display Output Native Stream Active.")
 
-            // Read the tunnel log file and share the control access link right inside your Discord text chat!
             let cfUrlMessage = "🚀 **GitHub Actions VM Connected!** System online. Screenshare loop activated.\n\n";
             try {
               const logData = fs.readFileSync('C:/tunnel_err.log', 'utf8');
               const match = logData.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
               if (match) {
-                cfUrlMessage += "🔗 **Cloudflare Control Tunnel:** `" + match[0] + "`";
+                cfUrlMessage += `🔗 **Cloudflare Control Tunnel:** \`${match[0]}\``;
               } else {
                 cfUrlMessage += "⚠️ Cloudflare tunnel generated, but link could not be parsed automatically from logs.";
               }
@@ -135,7 +135,6 @@ jobs:
           }
         })
 
-        // --- OS Remote Input Controller Event Listeners ---
         userClient.on('messageCreate', async (message) => {
           if (message.author.id === userClient.user.id || message.channel.id !== targetTextChannelId) return
           if (!message.content.trim().startsWith('!')) return
@@ -148,32 +147,32 @@ jobs:
             const y = parseInt(args[1])
             if (!isNaN(x) && !isNaN(y)) {
               robot.moveMouse(x, y)
-              await message.reply("🖱️ Pointer moved to X: " + x + ", Y: " + y)
+              await message.reply(`鼠标移动到 X: ${x}, Y: ${y}`)
             }
           }
           else if (command === 'click') {
             const clickType = args[0] === 'right' ? 'right' : 'left'
             robot.mouseClick(clickType)
-            await message.reply("🖱️ Clicked: [" + clickType + "]")
+            await message.reply(`点击了: [${clickType}]`)
           }
           else if (command === 'type') {
             const rawString = args.join(' ')
             if (rawString) {
               robot.typeString(rawString)
-              await message.reply("⌨️ Typed input string: \"" + rawString + "\"")
+              await message.reply(`输入了字符串: "${rawString}"`)
             }
           }
           else if (command === 'press') {
             const targetKey = args[0]
             if (targetKey) {
               robot.keyTap(targetKey)
-              await message.reply("⌨️ Pressed structural key: [" + targetKey + "]")
+              await message.reply(`按下了按键: [${targetKey}]`)
             }
           }
         })
 
         userClient.login(process.env.DISCORD_USER_TOKEN)
-        "@ | Out-File -FilePath bot.js -Encoding utf8
+        '@ | Out-File -FilePath bot.js -Encoding utf8
 
     - name: Launch Automated Bot Process Loop
       env:
