@@ -25,9 +25,9 @@ jobs:
     - name: Download and Launch Cloudflare Tunnel
       run: |
         # Fixed: Use WebClient to pull down the direct 2025.10.0 link you verified
-        \$WebClient = New-Object System.Net.WebClient
-        \$WebClient.Headers.Add("User-Agent", "Mozilla/5.0")
-        \$WebClient.DownloadFile("https://github.com", "cloudflared.exe")
+        $WebClient = New-Object System.Net.WebClient
+        $WebClient.Headers.Add("User-Agent", "Mozilla/5.0")
+        $WebClient.DownloadFile("https://github.com", "cloudflared.exe")
         
         # Spawn the tunnel headlessly as a background task forwarding local RDP ports
         Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
