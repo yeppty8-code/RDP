@@ -19,13 +19,13 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Completely fixed password line — no variables or backslashes used here
+        # Configure local user account credentials
         Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force)
 
     - name: Download and Launch Cloudflare Tunnel
       run: |
-        # Use native PowerShell web request to guarantee a clean, uncorrupted binary download
-        Invoke-WebRequest -Uri "https://github.com" -OutFile "cloudflared.exe"
+        # Fixed: Explicitly call curl.exe with a browser user-agent to force a clean binary download
+        curl.exe -A "Mozilla/5.0" -L "https://github.com" -o "cloudflared.exe"
         
         # Spawn the tunnel headlessly as a background task forwarding local RDP ports
         Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
