@@ -8,11 +8,6 @@ jobs:
     - name: Checkout Code Repo Context
       uses: actions/checkout@v4
 
-    - name: Setup Node.js Environment
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-
     - name: Setup RDP and System User Account
       run: |
         # Enable Remote Desktop Connections
@@ -22,7 +17,7 @@ jobs:
         # Configure local user account credentials
         Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force)
 
-      - name: Download and Launch Cloudflare Tunnel
+    - name: Download and Launch Cloudflare Tunnel
       run: |
         # Force TLS 1.2/1.3 for secure file downloads
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -45,145 +40,3 @@ jobs:
         if (Test-Path "C:\tunnel_err.log") {
             Get-Content "C:\tunnel_err.log" | Select-String "trycloudflare.com" | Select-Object -First 1
         }
-
-    - name: Install Desktop C++ Compiler Architecture Tools
-      run: |
-        npm install --global windows-build-tools --quiet || true
-
-    - name: Initialize Automated Prank Bot Engine
-      run: |
-        mkdir C:\BotFiles
-        cd C:\BotFiles
-
-        # Create package.json config
-        @'
-        {
-          "name": "rdp-control-bot",
-          "version": "1.0.0",
-          "main": "bot.js",
-          "dependencies": {
-            "@discordjs/opus": "latest",
-            "@discordjs/voice": "latest",
-            "discord.js-selfbot-v13": "latest",
-            "screenshot-desktop": "latest",
-            "robotjs": "latest"
-          }
-        }
-        '@ | Out-File -FilePath package.json -Encoding utf8
-
-        npm install --production --quiet
-
-        # Create bot.js script using literal here-string formatting
-        @'
-        const { Client } = require('discord.js-selfbot-v13')
-        const { joinVoiceChannel, createStreamPlayer } = require('@discordjs/voice')
-        const screenshot = require('screenshot-desktop')
-        const robot = require('robotjs')
-        const fs = require('fs')
-
-        const userClient = new Client({ checkUpdate: false })
-        const TARGET_SERVER_NAME = 'MienFlayer'
-
-        let streamInterval;
-        let connection;
-        let targetVoiceChannelId = null;
-        let targetTextChannelId = null;
-
-        userClient.on('ready', async () => {
-          console.log(`🟢 Prank Bot Live Inside GitHub RDP as: \${userClient.user.tag}`)
-          
-          const guild = userClient.guilds.cache.find(g => g.name === TARGET_SERVER_NAME)
-          if (!guild) return console.error("❌ MienFlayer Server layout matching error.")
-
-          const textChannel = guild.channels.cache.find(c => c.type === 'GUILD_TEXT')
-          const voiceChannel = guild.channels.cache.find(c => c.type === 'GUILD_VOICE')
-
-          if (textChannel) targetTextChannelId = textChannel.id
-          if (voiceChannel) {
-            targetVoiceChannelId = voiceChannel.id
-            
-            const channel = await userClient.channels.fetch(targetVoiceChannelId)
-            connection = joinVoiceChannel({
-              channelId: channel.id,
-              guildId: channel.guild.id,
-              adapterCreator: channel.guild.voiceAdapterCreator,
-              selfMute: true,
-              selfDeaf: false
-            })
-
-            const streamPlayer = createStreamPlayer()
-            connection.subscribe(streamPlayer)
-            await connection.voiceConnection.setScreenshareStatus(true)
-            console.log("🟢 Screensharing Windows RDP Monitor Display Output Native Stream Active.")
-
-            let cfUrlMessage = "🚀 **GitHub Actions VM Connected!** System online. Screenshare loop activated.\n\n";
-            try {
-              const logData = fs.readFileSync('C:/tunnel_err.log', 'utf8');
-              const match = logData.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
-              if (match) {
-                cfUrlMessage += `🔗 **Cloudflare Control Tunnel:** \`${match}\``;
-              } else {
-                cfUrlMessage += "⚠️ Cloudflare tunnel generated, but link could not be parsed automatically from logs.";
-              }
-            } catch (e) {
-              cfUrlMessage += "⚠️ Failed reading local background tunnel link files.";
-            }
-
-            if (textChannel) {
-              textChannel.send(cfUrlMessage);
-            }
-
-            streamInterval = setInterval(async () => {
-              try {
-                const frameBuffer = await screenshot({ format: 'jpeg' })
-                streamPlayer.playFrame(frameBuffer)
-              } catch (err) {}
-            }, 1000 / 20)
-          }
-        })
-
-        userClient.on('messageCreate', async (message) => {
-          if (message.author.id === userClient.user.id || message.channel.id !== targetTextChannelId) return
-          if (!message.content.trim().startsWith('!')) return
-
-          const args = message.content.slice(1).split(' ')
-          const command = args.shift().toLowerCase()
-
-          if (command === 'move') {
-            const x = parseInt(args)
-            const y = parseInt(args)
-            if (!isNaN(x) && !isNaN(y)) {
-              robot.moveMouse(x, y)
-              await message.reply(`鼠标移动 to X: \${x}, Y: \${y}`)
-            }
-          }
-          else if (command === 'click') {
-            const clickType = args === 'right' ? 'right' : 'left'
-            robot.mouseClick(clickType)
-            await message.reply(`点击了: [\${clickType}]`)
-          }
-          else if (command === 'type') {
-            const rawString = args.join(' ')
-            if (rawString) {
-              robot.typeString(rawString)
-              await message.reply(`输入了字符串: "\${rawString}"`)
-            }
-          }
-          else if (command === 'press') {
-            const targetKey = args
-            if (targetKey) {
-              robot.keyTap(targetKey)
-              await message.reply(`按下了按键: [\${targetKey}]`)
-            }
-          }
-        })
-
-        userClient.login(process.env.DISCORD_USER_TOKEN)
-        '@ | Out-File -FilePath bot.js -Encoding utf8
-
-    - name: Launch Automated Bot Process Loop
-      env:
-        DISCORD_USER_TOKEN: \${{ secrets.DISCORD_USER_TOKEN }}
-      run: |
-        cd C:\BotFiles
-        node bot.js
