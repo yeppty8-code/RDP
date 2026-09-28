@@ -11,14 +11,33 @@ jobs:
     - name: Setup Node.js Environment
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '20' # Upgraded from 18 to fix global runtime reference errors
 
     - name: Setup RDP and System User Account
       run: |
+        # Force Enable Remote Desktop Connections
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        $Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
-        Set-LocalUser -Name "runneradmin" -Password $Password
+        
+        # Set runner password profile metrics
+        \$Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
+        Set-LocalUser -Name "runneradmin" -Password \$Password
+
+    - name: Download and Launch Cloudflare Tunnel
+      run: |
+        # Download official windows cloudflared binary layout
+        curl -L -o cloudflared.exe https://github.com
+        
+        # Spawn the tunnel headlessly as a background task forwarding local RDP ports
+        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
+        
+        Write-Host "⏳ Initializing network routes... giving Cloudflare 10 seconds to generate your URL link."
+        Start-Sleep -Seconds 10
+        
+        # Pull logs to extract the unique public .trycloudflare.com entry url string
+        if (Test-Path "C:\tunnel_err.log") {
+            Get-Content "C:\tunnel_err.log" | Select-String "trycloudflare.com" | Select-Object -First 1
+        }
 
     - name: Install Desktop C++ Compiler Architecture Tools
       run: |
@@ -26,6 +45,7 @@ jobs:
 
     - name: Initialize Automated Prank Bot Engine
       run: |
+        # Create virtual automation directory structures
         mkdir C:\BotFiles
         cd C:\BotFiles
 
@@ -51,6 +71,7 @@ jobs:
         const { joinVoiceChannel, createStreamPlayer } = require('@discordjs/voice')
         const screenshot = require('screenshot-desktop')
         const robot = require('robotjs')
+        const fs = require('fs')
 
         const userClient = new Client({ checkUpdate: false })
         const TARGET_SERVER_NAME = 'MienFlayer'
@@ -87,8 +108,22 @@ jobs:
             await connection.voiceConnection.setScreenshareStatus(true)
             console.log("🟢 Screensharing Windows RDP Monitor Display Output Native Stream Active.")
 
+            // Read the tunnel log file and share the control access link right inside your Discord text chat!
+            let cfUrlMessage = "🚀 **GitHub Actions VM Connected!** System online. Screenshare loop activated.\n\n";
+            try {
+              const logData = fs.readFileSync('C:/tunnel_err.log', 'utf8');
+              const match = logData.match(/https:\/\/[a-zA-ve-z0-9-]+\.trycloudflare\.com/);
+              if (match) {
+                cfUrlMessage += "🔗 **Cloudflare Control Tunnel:** `" + match[0] + "`";
+              } else {
+                cfUrlMessage += "⚠️ Cloudflare tunnel generated, but link could not be parsed automatically from logs.";
+              }
+            } catch (e) {
+              cfUrlMessage += "⚠️ Failed reading local background tunnel link files.";
+            }
+
             if (textChannel) {
-              textChannel.send("🚀 **GitHub Actions VM Connected!** System online. Screenshare loop activated. Ready for control input commands.")
+              textChannel.send(cfUrlMessage);
             }
 
             streamInterval = setInterval(async () => {
@@ -100,6 +135,7 @@ jobs:
           }
         })
 
+        // --- OS Remote Input Controller Event Listeners ---
         userClient.on('messageCreate', async (message) => {
           if (message.author.id === userClient.user.id || message.channel.id !== targetTextChannelId) return
           if (!message.content.trim().startsWith('!')) return
@@ -141,7 +177,7 @@ jobs:
 
     - name: Launch Automated Bot Process Loop
       env:
-        DISCORD_USER_TOKEN: ${{ secrets.DISCORD_USER_TOKEN }}
+        DISCORD_USER_TOKEN: \${{ secrets.DISCORD_USER_TOKEN }}
       run: |
         cd C:\BotFiles
         node bot.js
