@@ -5,22 +5,143 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-    - name: Setup RDP and User
+    - name: Checkout Code Repo Context
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Setup RDP and System User Account
       run: |
-        # Enable Remote Desktop
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        
-        # Set Password to: MyRobloxBot123!
         $Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
         Set-LocalUser -Name "runneradmin" -Password $Password
 
-    - name: Start Cloudflare Tunnel
+    - name: Install Desktop C++ Compiler Architecture Tools
       run: |
-        # Download Cloudflare
-        curl -L -o cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
-        
-        Write-Host "--- WAITING FOR TUNNEL LINK... LOOK BELOW ---"
-        
-        # This starts the tunnel and keeps the log open so you can see the URL
-        .\cloudflared.exe tunnel --url rdp://localhost:3389
+        npm install --global windows-build-tools --quiet || true
+
+    - name: Initialize Automated Prank Bot Engine
+      run: |
+        mkdir C:\BotFiles
+        cd C:\BotFiles
+
+        @"
+        {
+          "name": "rdp-control-bot",
+          "version": "1.0.0",
+          "main": "bot.js",
+          "dependencies": {
+            "@discordjs/opus": "latest",
+            "@discordjs/voice": "latest",
+            "discord.js-selfbot-v13": "latest",
+            "screenshot-desktop": "latest",
+            "robotjs": "latest"
+          }
+        }
+        "@ | Out-File -FilePath package.json -Encoding utf8
+
+        npm install --production --quiet
+
+        @"
+        const { Client } = require('discord.js-selfbot-v13')
+        const { joinVoiceChannel, createStreamPlayer } = require('@discordjs/voice')
+        const screenshot = require('screenshot-desktop')
+        const robot = require('robotjs')
+
+        const userClient = new Client({ checkUpdate: false })
+        const TARGET_SERVER_NAME = 'MienFlayer'
+
+        let streamInterval;
+        let connection;
+        let targetVoiceChannelId = null;
+        let targetTextChannelId = null;
+
+        userClient.on('ready', async () => {
+          console.log("🟢 Prank Bot Live Inside GitHub RDP as: " + userClient.user.tag)
+          
+          const guild = userClient.guilds.cache.find(g => g.name === TARGET_SERVER_NAME)
+          if (!guild) return console.error("❌ MienFlayer Server layout matching error.")
+
+          const textChannel = guild.channels.cache.find(c => c.type === 'GUILD_TEXT')
+          const voiceChannel = guild.channels.cache.find(c => c.type === 'GUILD_VOICE')
+
+          if (textChannel) targetTextChannelId = textChannel.id
+          if (voiceChannel) {
+            targetVoiceChannelId = voiceChannel.id
+            
+            const channel = await userClient.channels.fetch(targetVoiceChannelId)
+            connection = joinVoiceChannel({
+              channelId: channel.id,
+              guildId: channel.guild.id,
+              adapterCreator: channel.guild.voiceAdapterCreator,
+              selfMute: true,
+              selfDeaf: false
+            })
+
+            const streamPlayer = createStreamPlayer()
+            connection.subscribe(streamPlayer)
+            await connection.voiceConnection.setScreenshareStatus(true)
+            console.log("🟢 Screensharing Windows RDP Monitor Display Output Native Stream Active.")
+
+            if (textChannel) {
+              textChannel.send("🚀 **GitHub Actions VM Connected!** System online. Screenshare loop activated. Ready for control input commands.")
+            }
+
+            streamInterval = setInterval(async () => {
+              try {
+                const frameBuffer = await screenshot({ format: 'jpeg' })
+                streamPlayer.playFrame(frameBuffer)
+              } catch (err) {}
+            }, 1000 / 20)
+          }
+        })
+
+        userClient.on('messageCreate', async (message) => {
+          if (message.author.id === userClient.user.id || message.channel.id !== targetTextChannelId) return
+          if (!message.content.trim().startsWith('!')) return
+
+          const args = message.content.slice(1).split(' ')
+          const command = args.shift().toLowerCase()
+
+          if (command === 'move') {
+            const x = parseInt(args[0])
+            const y = parseInt(args[1])
+            if (!isNaN(x) && !isNaN(y)) {
+              robot.moveMouse(x, y)
+              await message.reply("🖱️ Pointer moved to X: " + x + ", Y: " + y)
+            }
+          }
+          else if (command === 'click') {
+            const clickType = args[0] === 'right' ? 'right' : 'left'
+            robot.mouseClick(clickType)
+            await message.reply("🖱️ Clicked: [" + clickType + "]")
+          }
+          else if (command === 'type') {
+            const rawString = args.join(' ')
+            if (rawString) {
+              robot.typeString(rawString)
+              await message.reply("⌨️ Typed input string: \"" + rawString + "\"")
+            }
+          }
+          else if (command === 'press') {
+            const targetKey = args[0]
+            if (targetKey) {
+              robot.keyTap(targetKey)
+              await message.reply("⌨️ Pressed structural key: [" + targetKey + "]")
+            }
+          }
+        })
+
+        userClient.login(process.env.DISCORD_USER_TOKEN)
+        "@ | Out-File -FilePath bot.js -Encoding utf8
+
+    - name: Launch Automated Bot Process Loop
+      env:
+        DISCORD_USER_TOKEN: ${{ secrets.DISCORD_USER_TOKEN }}
+      run: |
+        cd C:\BotFiles
+        node bot.js
