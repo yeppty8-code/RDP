@@ -19,30 +19,46 @@ jobs:
 
     - name: Launch Zero-Login Raw TCP Tunnel
       run: |
-        # Ensure a clean log file exists
+        # Ensure separate clean log files exist for both streams
         New-Item -ItemType File -Path "C:\tunnel.log" -Force | Out-Null
+        New-Item -ItemType File -Path "C:\tunnel_err.log" -Force | Out-Null
         
-        # Run SSH with absolute strict host checking bypasses and error routing merged into one stream
-        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel.log"
+        # Fixed: Redirect output and errors to separate, unique files to satisfy PowerShell constraints
+        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
         
         Write-Host "⏳ Initializing network routes... pulling initial connection log streams:"
         Write-Host "=========================================================================="
         
-        # Loop for 20 seconds to give the tunnel time to securely register and output the URL
+        # Loop to monitor the logs for the incoming server address details
         $initTimeout = 0
-        while ($initTimeout -lt 10) {
+        while ($initTimeout -lt 15) {
             Start-Sleep -Seconds 2
+            
+            # Print standard output if it contains data
             if (Test-Path "C:\tunnel.log") {
-                Get-Content "C:\tunnel.log" | Select-Object -Last 10
+                $outData = Get-Content "C:\tunnel.log"
+                if ($outData) {
+                    Write-Host "--- Standard Output ---"
+                    $outData | Select-Object -Last 10
+                }
             }
+            
+            # Print error data if the connection throws warnings
+            if (Test-Path "C:\tunnel_err.log") {
+                $errData = Get-Content "C:\tunnel_err.log"
+                if ($errData) {
+                    Write-Host "--- Connection Info/Errors ---"
+                    $errData | Select-Object -Last 10
+                }
+            }
+            
             $initTimeout++
         }
         
         Write-Host "=========================================================================="
         Write-Host "🔒 Active keep-alive loop engaged. VM will stay alive for up to 6 hours."
-        Write-Host "💡 Pro-Tip: To look at your connection URL at any time, review the top of this step's log."
         
-        # Continuous Anti-Idle Loop: Sends a timestamp heartbeat every 5 minutes to prevent timeout
+        # Continuous Anti-Idle Heartbeat Loop to prevent early container shutdown
         $runtimeMinutes = 0
         while ($true) {
             Start-Sleep -Seconds 300
