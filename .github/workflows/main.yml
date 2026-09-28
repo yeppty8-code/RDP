@@ -22,14 +22,14 @@ jobs:
         # Force TLS 1.2/1.3 for secure file downloads
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-        # Initialize WebClient with a standard Windows desktop browser user agent
-        $WebClient = New-Object System.Net.WebClient
-        $WebClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-        
-        # Explicitly pull down the legitimate 64-bit Windows binary
+        # Clean download using modern PowerShell cmdlets that follow redirects correctly
         $DownloadUrl = "https://github.com"
-        $WebClient.DownloadFile($DownloadUrl, "cloudflared.exe")
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile "cloudflared.exe" -UserAgent "Mozilla/5.0"
         
+        # Verify file size in the logs to confirm it isn't an empty/HTML page
+        $fileSize = (Get-Item "cloudflared.exe").Length / 1MB
+        Write-Host "✅ Downloaded file size: $fileSize MB"
+
         # Spawn the tunnel headlessly as a background task forwarding local RDP ports
         Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
         
