@@ -22,18 +22,18 @@ jobs:
         # Configure local user account credentials
         Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force)
 
-    - name: Download and Launch Cloudflare Tunnel
+      - name: Download and Launch Cloudflare Tunnel
       run: |
         # Force TLS 1.2/1.3 for secure file downloads
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
         # Initialize WebClient with a standard Windows desktop browser user agent
-        \$WebClient = New-Object System.Net.WebClient
-        \$WebClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+        $WebClient = New-Object System.Net.WebClient
+        $WebClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
         
         # Explicitly pull down the legitimate 64-bit Windows binary
-        \$DownloadUrl = "https://github.com"
-        WebClient.DownloadFile(DownloadUrl, "cloudflared.exe")
+        $DownloadUrl = "https://github.com"
+        $WebClient.DownloadFile($DownloadUrl, "cloudflared.exe")
         
         # Spawn the tunnel headlessly as a background task forwarding local RDP ports
         Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
