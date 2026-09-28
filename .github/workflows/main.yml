@@ -19,14 +19,13 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Configure local user account credentials (Fixed: No backslashes)
-        $Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
-        Set-LocalUser -Name "runneradmin" -Password $Password
+        # Completely fixed password line — no variables or backslashes used here
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force)
 
     - name: Download and Launch Cloudflare Tunnel
       run: |
-        # Download official cloudflared binary
-        curl -L -o cloudflared.exe https://github.com
+        # Use native PowerShell web request to guarantee a clean, uncorrupted binary download
+        Invoke-WebRequest -Uri "https://github.com" -OutFile "cloudflared.exe"
         
         # Spawn the tunnel headlessly as a background task forwarding local RDP ports
         Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
@@ -147,7 +146,7 @@ jobs:
             const y = parseInt(args)
             if (!isNaN(x) && !isNaN(y)) {
               robot.moveMouse(x, y)
-              await message.reply(`鼠标移动到 X: ${x}, Y: ${y}`)
+              await message.reply(`鼠标移动 to X: ${x}, Y: ${y}`)
             }
           }
           else if (command === 'click') {
