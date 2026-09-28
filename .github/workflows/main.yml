@@ -1,4 +1,4 @@
-name: Windows-RDP-Cloudflare
+name: Windows-RDP-Pinggy
 on: workflow_dispatch
 
 jobs:
@@ -17,33 +17,16 @@ jobs:
         # Configure local user account credentials
         Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force)
 
-    - name: Download and Launch Cloudflare Tunnel
+    - name: Launch Zero-Login Raw TCP Tunnel
       run: |
-        # Force modern secure transport protocols
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
-
-        # Fixed: Bypassing GitHub entirely by hitting Cloudflare's stable primary download CDN mirror
-        $DownloadUrl = "https://github.com"
+        # Use built-in SSH to tunnel raw RDP port 3389 without creating an account or downloading files
+        # The 'StrictHostKeyChecking=no' parameter skips confirmation prompts automatically
+        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
         
-        # Cleanly pull the file down using standard web streams mimicking edge browsers
-        Invoke-WebRequest -Uri $DownloadUrl -OutFile "cloudflared.exe" -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-
-        # Verify file presence and print size to ensure payload delivery integrity
-        if (Test-Path "cloudflared.exe") {
-            $fileSize = (Get-Item "cloudflared.exe").Length / 1MB
-            Write-Host "✅ Verified Download File Size: $fileSize MB"
-        } else {
-            Write-Error "❌ Fatal Error: File payload failed to write completely to target location."
-            exit 1
-        }
+        Write-Host "⏳ Initializing zero-login network routes... giving tunnel 10 seconds to stabilize."
+        Start-Sleep -Seconds 10
         
-        # Spawn the tunnel headlessly as a background task forwarding local RDP ports
-        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "C:\tunnel.log" -RedirectStandardError "C:\tunnel_err.log"
-        
-        Write-Host "⏳ Initializing network routes... giving Cloudflare 15 seconds to generate your URL link."
-        Start-Sleep -Seconds 15
-        
-        # Pull logs to extract the unique public .trycloudflare.com entry url string
-        if (Test-Path "C:\tunnel_err.log") {
-            Get-Content "C:\tunnel_err.log" | Select-String "trycloudflare.com" | Select-Object -First 1
+        # Print the logs to see your generated public URL and custom TCP port destination
+        if (Test-Path "C:\tunnel.log") {
+            Get-Content "C:\tunnel.log"
         }
