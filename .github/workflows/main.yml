@@ -11,7 +11,7 @@ jobs:
     - name: Setup Node.js Environment
       uses: actions/setup-node@v4
       with:
-        node-version: '20' # Upgraded from 18 to fix global runtime reference errors
+        node-version: '20'
 
     - name: Setup RDP and System User Account
       run: |
@@ -19,7 +19,7 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Set runner password profile metrics
+        # Set runner password profile metrics (Fixed formatting)
         \$Password = ConvertTo-SecureString "MyRobloxBot123!" -AsPlainText -Force
         Set-LocalUser -Name "runneradmin" -Password \$Password
 
@@ -112,7 +112,7 @@ jobs:
             let cfUrlMessage = "🚀 **GitHub Actions VM Connected!** System online. Screenshare loop activated.\n\n";
             try {
               const logData = fs.readFileSync('C:/tunnel_err.log', 'utf8');
-              const match = logData.match(/https:\/\/[a-zA-ve-z0-9-]+\.trycloudflare\.com/);
+              const match = logData.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
               if (match) {
                 cfUrlMessage += "🔗 **Cloudflare Control Tunnel:** `" + match[0] + "`";
               } else {
